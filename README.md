@@ -8,4 +8,13 @@
 2. **stream-analytics** - Асинхронный процессор Kafka Streams для вычисления скользящих окон.
 
 ## Инфраструктура
-Для локального запуска используется Docker Compose (Kafka, Redis, Postgres, ELK).
+Для локального запуска используется Docker Compose (Kafka, Redis, Postgres, ELK):
+```bash
+docker-compose up -d
+```
+
+## Тестирование API
+Отправка тестовой транзакции (PowerShell):
+```powershell
+Invoke-RestMethod -Uri "http://localhost:8080/api/v1/fraud/evaluate" -Method Post -ContentType "application/json" -Body '{"transactionId":"TXN-001", "amount":600000.00}'
+```
