@@ -4,3 +4,10 @@ server:
 spring:
   application:
     name: fraud-gateway
+
+resilience4j.circuitbreaker:
+  instances:
+    redis:
+      slidingWindowSize: 10
+      failureRateThreshold: 50
+      waitDurationInOpenState: 10s
