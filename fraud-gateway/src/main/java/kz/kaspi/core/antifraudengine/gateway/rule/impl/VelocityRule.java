@@ -15,7 +15,8 @@ public class VelocityRule implements FraudRule {
 
     @Override
     public RuleResult evaluate(TransactionEvent event) {
-        // TODO: Реализовать обращение к Kafka Streams для подсчета транзакций за 60 секунд.
+        // TODO: Реализовать обращение к Kafka Streams для подсчета транзакций за 60
+        // секунд.
         return new RuleResult(ruleName(), 0, "Проверка частоты временно отключена");
     }
 }
