@@ -3,12 +3,10 @@
     <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
     <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
     
-    <!-- Вывод логов в Logstash (ELK) в формате JSON по TCP -->
     <appender name="LOGSTASH" class="net.logstash.logback.appender.LogstashTcpSocketAppender">
-        <!-- Адрес Logstash из нашего docker-compose -->
         <destination>localhost:5000</destination>
         <encoder class="net.logstash.logback.encoder.LogstashEncoder">
-            <customFields>{"app_name":"fraud-gateway"}</customFields>
+            <customFields>{"app_name":"stream-analytics"}</customFields>
         </encoder>
     </appender>
 
