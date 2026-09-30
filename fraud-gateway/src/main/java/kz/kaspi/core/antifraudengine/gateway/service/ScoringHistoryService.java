@@ -15,7 +15,7 @@ import org.springframework.stereotype.Service;
 public class ScoringHistoryService {
 
     private final ScoringResultRepository repository;
-    private final ObjectMapper objectMapper;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Async
     public void saveResultAsync(String transactionId, ScoringResult result) {

@@ -5,7 +5,7 @@ spring:
   application:
     name: fraud-gateway
   datasource:
-    url: jdbc:postgresql://localhost:5432/antifraud
+    url: jdbc:postgresql://localhost:5433/antifraud
     username: postgres
     password: postgrespassword
   jpa:
@@ -19,3 +19,4 @@ resilience4j.circuitbreaker:
       slidingWindowSize: 10
       failureRateThreshold: 50
       waitDurationInOpenState: 10s
+

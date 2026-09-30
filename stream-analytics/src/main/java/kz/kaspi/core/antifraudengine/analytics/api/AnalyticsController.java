@@ -17,7 +17,7 @@ public class AnalyticsController {
     private final TransactionHistoryService historyService;
 
     @GetMapping("/users/{userId}/velocity")
-    public ResponseEntity<Map<String, Long>> getVelocity(@PathVariable String userId) {
+    public ResponseEntity<Map<String, Object>> getVelocity(@PathVariable String userId) {
         long count = historyService.countTransactionsInWindow(userId, 1);
         return ResponseEntity.ok(Map.of("senderId", userId, "transactionCount", count));
     }
