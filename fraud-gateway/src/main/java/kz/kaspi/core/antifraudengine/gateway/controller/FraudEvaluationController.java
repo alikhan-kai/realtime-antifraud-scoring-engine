@@ -5,6 +5,7 @@ import kz.kaspi.core.antifraudengine.gateway.domain.ScoringResult;
 import kz.kaspi.core.antifraudengine.gateway.domain.TransactionEvent;
 import kz.kaspi.core.antifraudengine.gateway.engine.FraudEvaluationEngine;
 import kz.kaspi.core.antifraudengine.gateway.service.KafkaEventPublisher;
+import kz.kaspi.core.antifraudengine.gateway.service.ScoringHistoryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -19,14 +20,18 @@ public class FraudEvaluationController {
 
     private final FraudEvaluationEngine engine;
     private final KafkaEventPublisher eventPublisher;
+    private final ScoringHistoryService historyService;
 
     @PostMapping("/evaluate")
     public ResponseEntity<ScoringResult> evaluateTransaction(@Valid @RequestBody TransactionEvent event) {
-        // 1. Асинхронно отправляем транзакцию в Kafka для аналитики
+        // Отправка в Kafka
         eventPublisher.publish(event);
         
-        // 2. Запускаем мгновенный скоринг
+        // Мгновенный скоринг (Virtual Threads)
         ScoringResult result = engine.evaluate(event);
+        
+        // Асинхронное сохранение в Postgres (без блокировки)
+        historyService.saveResultAsync(event.getTransactionId(), result);
         
         return ResponseEntity.ok(result);
     }

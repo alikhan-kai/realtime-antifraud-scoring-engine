@@ -4,6 +4,14 @@ server:
 spring:
   application:
     name: fraud-gateway
+  datasource:
+    url: jdbc:postgresql://localhost:5432/antifraud
+    username: postgres
+    password: postgrespassword
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
 
 resilience4j.circuitbreaker:
   instances:
