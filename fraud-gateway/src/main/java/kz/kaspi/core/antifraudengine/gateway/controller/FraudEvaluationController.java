@@ -4,7 +4,7 @@ import jakarta.validation.Valid;
 import kz.kaspi.core.antifraudengine.gateway.domain.ScoringResult;
 import kz.kaspi.core.antifraudengine.gateway.domain.TransactionEvent;
 import kz.kaspi.core.antifraudengine.gateway.engine.FraudEvaluationEngine;
-import kz.kaspi.core.antifraudengine.gateway.service.KafkaEventPublisher;
+import kz.kaspi.core.antifraudengine.gateway.service.OutboxService;
 import kz.kaspi.core.antifraudengine.gateway.service.ScoringHistoryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -19,20 +19,21 @@ import org.springframework.web.bind.annotation.RestController;
 public class FraudEvaluationController {
 
     private final FraudEvaluationEngine engine;
-    private final KafkaEventPublisher eventPublisher;
+    private final OutboxService outboxService; // Подключили наш новый сервис
     private final ScoringHistoryService historyService;
 
     @PostMapping("/evaluate")
     public ResponseEntity<ScoringResult> evaluateTransaction(@Valid @RequestBody TransactionEvent event) {
-        // Отправка в Kafka
-        eventPublisher.publish(event);
-        
-        // Мгновенный скоринг (Virtual Threads)
+
+        // 1. Паттерн OUTBOX: Сохраняем в PostgreSQL вместо прямой отправки в Kafka
+        outboxService.saveEvent(event);
+
+        // 2. Расчет фрод-скоринга (Virtual Threads)
         ScoringResult result = engine.evaluate(event);
-        
-        // Асинхронное сохранение в Postgres (без блокировки)
+
+        // 3. Асинхронное сохранение результата в Postgres
         historyService.saveResultAsync(event.getTransactionId(), result);
-        
+
         return ResponseEntity.ok(result);
     }
 }

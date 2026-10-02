@@ -1,4 +1,4 @@
-package kz.kaspi.core.antifraudengine.gateway.service;
+﻿package kz.kaspi.core.antifraudengine.gateway.service;
 
 import kz.kaspi.core.antifraudengine.gateway.domain.TransactionEvent;
 import lombok.RequiredArgsConstructor;
@@ -15,11 +15,6 @@ public class KafkaEventPublisher {
     private static final String TOPIC = "transactions-events";
 
     public void publish(TransactionEvent event) {
-        try {
-            // Ключ - senderId, чтобы все события юзера попали в одну партицию Kafka
-            kafkaTemplate.send(TOPIC, event.getSenderId(), event);
-        } catch (Exception e) {
-            log.error("Ошибка при отправке в Kafka: {}", e.getMessage());
-        }
+        kafkaTemplate.send(TOPIC, event.getSenderId(), event);
     }
 }

@@ -1,9 +1,12 @@
-server:
+﻿server:
   port: 8080
 
 spring:
   application:
     name: fraud-gateway
+  kafka:
+    producer:
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
   datasource:
     url: jdbc:postgresql://localhost:5433/antifraud
     username: postgres
@@ -19,4 +22,3 @@ resilience4j.circuitbreaker:
       slidingWindowSize: 10
       failureRateThreshold: 50
       waitDurationInOpenState: 10s
-
