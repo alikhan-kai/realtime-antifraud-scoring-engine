@@ -7,6 +7,10 @@ import lombok.Data;
 import java.math.BigDecimal;
 import java.time.Instant;
 
+/**
+ * Data Transfer Object representing an incoming financial transaction.
+ * Validated upon entry to ensure all critical fraud-scoring fields are present.
+ */
 @Data
 public class TransactionEvent {
     @NotBlank(message = "Transaction ID is required")
