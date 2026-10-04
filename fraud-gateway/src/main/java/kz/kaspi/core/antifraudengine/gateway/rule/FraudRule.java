@@ -10,4 +10,8 @@ public interface FraudRule {
 
     // Основная логика проверки транзакции
     RuleResult evaluate(TransactionEvent event);
+
+    default boolean isShadowMode(){
+        return false;
+    }
 }

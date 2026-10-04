@@ -23,24 +23,34 @@ public class FraudEvaluationEngine {
 
     private final ExecutorService virtualThreadExecutor = Executors.newVirtualThreadPerTaskExecutor();
 
-    public ScoringResult evaluate(TransactionEvent event) {
-        log.info("Scoring comple ted for transaction: {}", event.getTransactionId());
+        public ScoringResult evaluate(TransactionEvent event) {
+        log.info("Scoring started for transaction: {}", event.getTransactionId());
 
+        // 1. Запускаем все правила параллельно (Virtual Threads)
         List<CompletableFuture<RuleResult>> futures = rules.stream()
-                .map(rule -> CompletableFuture.supplyAsync(() -> rule.evaluate(event), virtualThreadExecutor))
+                .map(rule -> CompletableFuture.supplyAsync(() -> {
+                    RuleResult result = rule.evaluate(event);
+                    // Проставляем флаг Shadow Mode в результат, чтобы сохранить это в логи/БД
+                    result.setShadowMode(rule.isShadowMode());
+                    return result;
+                }, virtualThreadExecutor))
                 .toList();
 
+        // 2. Собираем все сработавшие правила (штраф > 0)
         List<RuleResult> ruleResults = futures.stream()
                 .map(CompletableFuture::join)
                 .filter(result -> result.getRiskScorePenalty() > 0)
                 .toList();
 
+        // 3. Считаем сумму баллов ТОЛЬКО ДЛЯ БОЕВЫХ ПРАВИЛ (Игнорируем Shadow Mode!)
         int totalScore = ruleResults.stream()
+                .filter(result -> !result.isShadowMode()) // <--- ВОТ НАША МАГИЯ
                 .mapToInt(RuleResult::getRiskScorePenalty)
                 .sum();
 
         RiskVerdict verdict = calculateVerdict(totalScore);
 
+        // 4. Но при этом в список сработавших мы передаем ВСЕ правила (даже теневые)
         return ScoringResult.builder()
                 .transactionId(event.getTransactionId())
                 .verdict(verdict)

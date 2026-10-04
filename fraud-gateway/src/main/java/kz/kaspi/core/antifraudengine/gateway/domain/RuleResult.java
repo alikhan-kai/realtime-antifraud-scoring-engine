@@ -11,4 +11,5 @@ public class RuleResult {
     private String ruleName;
     private int riskScorePenalty;
     private String reason;
+    private boolean isShadowMode;
 }

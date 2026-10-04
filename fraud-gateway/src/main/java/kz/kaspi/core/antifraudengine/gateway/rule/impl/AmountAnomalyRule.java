@@ -20,12 +20,9 @@ public class AmountAnomalyRule implements FraudRule {
     @Override
     public RuleResult evaluate(TransactionEvent event) {
         if (event.getAmount() != null && event.getAmount().compareTo(AMOUNT_LIMIT) > 0) {
-            return new RuleResult(
-                    ruleName(),
-                    30,
-                    "Сумма перевода превышает базовый лимит (500 000)");
+            return new RuleResult(ruleName(), 30, "Amount exceeds limit (500 000)", isShadowMode());
         }
 
-        return new RuleResult(ruleName(), 0, "Сумма в пределах нормы");
+        return new RuleResult(ruleName(), 0, "Amount is fine", isShadowMode());
     }
 }

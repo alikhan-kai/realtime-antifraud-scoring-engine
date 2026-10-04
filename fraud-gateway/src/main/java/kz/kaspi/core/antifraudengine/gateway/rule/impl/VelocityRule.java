@@ -22,13 +22,14 @@ public class VelocityRule implements FraudRule {
 
     @Override
     public RuleResult evaluate(TransactionEvent event) {
-        if (event.getSenderId() == null) return new RuleResult(ruleName(), 0, "No sender ID");
+        if (event.getSenderId() == null) return new RuleResult(ruleName(), 0, "No sender ID", isShadowMode());
 
         long count = analyticsClient.getUserTransactionCount(event.getSenderId());
         
         if (count >= MAX_TRANSACTIONS_PER_MINUTE) {
-            return new RuleResult(ruleName(), 50, "Обнаружена веерная рассылка: " + count + " транзакций за минуту");
+            return new RuleResult(ruleName(), 50, "РћР±РЅР°СЂСѓР¶РµРЅР° РІРµРµСЂРЅР°СЏ СЂР°СЃСЃС‹Р»РєР°: " + count + " С‚СЂР°РЅР·Р°РєС†РёР№ Р·Р° РјРёРЅСѓС‚Сѓ", isShadowMode());
         }
-        return new RuleResult(ruleName(), 0, "Частота переводов в норме: " + count);
+        return new RuleResult(ruleName(), 0, "Р§Р°СЃС‚РѕС‚Р° РїРµСЂРµРІРѕРґРѕРІ РІ РЅРѕСЂРјРµ: " + count, isShadowMode());
     }
 }
+

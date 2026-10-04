@@ -1,4 +1,4 @@
-﻿package kz.kaspi.core.antifraudengine.gateway.service;
+package kz.kaspi.core.antifraudengine.gateway.service;
 
 import kz.kaspi.core.antifraudengine.gateway.domain.TransactionEvent;
 import lombok.RequiredArgsConstructor;

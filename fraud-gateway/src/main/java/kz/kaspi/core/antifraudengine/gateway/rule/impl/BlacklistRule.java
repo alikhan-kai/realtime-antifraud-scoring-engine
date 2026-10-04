@@ -26,11 +26,10 @@ public class BlacklistRule implements FraudRule {
 
         if (isFraud) {
             return new RuleResult(
-                    ruleName(),
-                    100,
-                    "IP find in global blacklist");
+                    ruleName(), 100, "IP find in global blacklist", isShadowMode());
         }
 
-        return new RuleResult(ruleName(), 0, "OK - IP is clean");
+        return new RuleResult(ruleName(), 0, "OK - IP is clean", isShadowMode());
     }
 }
+
