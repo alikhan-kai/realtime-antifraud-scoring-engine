@@ -1,7 +1,12 @@
-﻿server:
+server:
   port: 8080
 
 spring:
+  neo4j:
+    uri: bolt://localhost:7687
+    authentication:
+      username: neo4j
+      password: neo4jpassword
   application:
     name: fraud-gateway
   kafka:
@@ -39,3 +44,4 @@ management:
   metrics:
     tags:
       application: ${spring.application.name}
+
