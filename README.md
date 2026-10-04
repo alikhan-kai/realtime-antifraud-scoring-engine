@@ -1,20 +1,10 @@
-# Real-Time Anti-Fraud & Transaction Scoring Engine
+# Real-Time Anti-Fraud Scoring Engine 🛡️
 
-Архитектурный концепт масштабируемой системы антифрода для оценки транзакций в реальном времени (SLA < 40ms). 
-Проект построен на микросервисной архитектуре с использованием Java 21, Spring Boot, Kafka Streams и RedisBloom.
+Enterprise-grade fraud detection engine built with Java 21, Spring Boot, Kafka, Redis, Neo4j, and PostgreSQL.
 
-## Микросервисы
-1. **fraud-gateway** - Высокопроизводительный шлюз для синхронной оценки транзакций.
-2. **stream-analytics** - Асинхронный процессор Kafka Streams для вычисления скользящих окон.
-
-## Инфраструктура
-Для локального запуска используется Docker Compose (Kafka, Redis, Postgres, ELK):
-```bash
-docker-compose up -d
-```
-
-## Тестирование API
-Отправка тестовой транзакции (PowerShell):
-```powershell
-Invoke-RestMethod -Uri "http://localhost:8080/api/v1/fraud/evaluate" -Method Post -ContentType "application/json" -Body '{"transactionId":"TXN-001", "amount":600000.00}'
-```
+## Features
+- **Transactional Outbox Pattern** for guaranteed event delivery to Kafka.
+- **Idempotency** via Redis to prevent double-spending and duplicate evaluations.
+- **Shadow Mode** for safely evaluating experimental machine learning rules in production.
+- **Graph Analysis (Neo4j)** to detect complex money laundering rings and cyclic transaction patterns.
+- **Real-Time Observability** with Prometheus and Grafana.
