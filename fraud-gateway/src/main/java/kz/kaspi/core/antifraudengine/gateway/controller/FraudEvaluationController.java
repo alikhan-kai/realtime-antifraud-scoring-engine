@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import kz.kaspi.core.antifraudengine.gateway.domain.ScoringResult;
 import kz.kaspi.core.antifraudengine.gateway.domain.TransactionEvent;
 import kz.kaspi.core.antifraudengine.gateway.engine.FraudEvaluationEngine;
+import kz.kaspi.core.antifraudengine.gateway.service.IdempotencyService;
 import kz.kaspi.core.antifraudengine.gateway.service.OutboxService;
 import kz.kaspi.core.antifraudengine.gateway.service.ScoringHistoryService;
 import lombok.RequiredArgsConstructor;
@@ -19,21 +20,32 @@ import org.springframework.web.bind.annotation.RestController;
 public class FraudEvaluationController {
 
     private final FraudEvaluationEngine engine;
-    private final OutboxService outboxService; // Подключили наш новый сервис
+    private final OutboxService outboxService;
     private final ScoringHistoryService historyService;
+    private final IdempotencyService idempotencyService; // <-- Наш новый сервис
 
     @PostMapping("/evaluate")
     public ResponseEntity<ScoringResult> evaluateTransaction(@Valid @RequestBody TransactionEvent event) {
+        
+        // 1.ИДЕМПОТЕНТНОСТЬ: Проверяем, не дубликат ли это?
+        ScoringResult cachedResult = idempotencyService.getCachedResult(event.getTransactionId());
+        if (cachedResult != null) {
+            // Возвращаем сохраненный ответ моментально, не нагружая систему!
+            return ResponseEntity.ok(cachedResult);
+        }
 
-        // 1. Паттерн OUTBOX: Сохраняем в PostgreSQL вместо прямой отправки в Kafka
+        // 2.Паттерн OUTBOX: Сохраняем в PostgreSQL (для Kafka)
         outboxService.saveEvent(event);
-
-        // 2. Расчет фрод-скоринга (Virtual Threads)
+        
+        // 3.Расчет фрод-скоринга (Virtual Threads)
         ScoringResult result = engine.evaluate(event);
+        
+        // 4.ИДЕМПОТЕНТНОСТЬ: Сохраняем результат в Redis на 24 часа
+        idempotencyService.cacheResult(event.getTransactionId(), result);
 
-        // 3. Асинхронное сохранение результата в Postgres
+        // 5.Асинхронное сохранение результата в Postgres
         historyService.saveResultAsync(event.getTransactionId(), result);
-
+        
         return ResponseEntity.ok(result);
     }
 }
