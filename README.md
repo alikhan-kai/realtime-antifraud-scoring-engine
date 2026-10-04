@@ -1,82 +1,92 @@
 # Real-Time Anti-Fraud Scoring Engine
 
-A high-performance, enterprise-grade fraud detection system designed to evaluate financial transactions in real-time. Built with a modern microservices architecture, this engine calculates a dynamic risk score for every incoming transaction and issues a final verdict (ALLOW, CHALLENGE, DECLINE) based on complex rule sets.
+Высоконагруженная система предотвращения мошенничества (Anti-Fraud), предназначенная для проверки финансовых транзакций в режиме реального времени. Проект построен на базе современной микросервисной архитектуры и реализует лучшие инженерные практики (Enterprise-уровня) для обеспечения отказоустойчивости, консистентности данных и высокой скорости обработки.
 
-## Project Goal
-The primary objective of this project is to provide a highly scalable, fault-tolerant, and idempotent system capable of intercepting and analyzing thousands of transactions per second. It mitigates financial risks such as money laundering, account takeovers, and high-velocity brute-force attacks while maintaining a strict sub-100ms SLA for synchronous API responses.
+## Цель проекта
+Главная цель данной системы — выявлять мошеннические финансовые операции (такие как отмывание денег, кража аккаунтов, брутфорс-атаки, аномальные переводы) в момент их совершения. Система принимает транзакцию, параллельно прогоняет ее через набор бизнес-правил и возвращает итоговый вердикт (ALLOW, CHALLENGE, DECLINE) с суммарным скоринговым баллом. Основное требование к системе — обеспечение строгого SLA по времени синхронного ответа (до 100 мс) при высоких нагрузках.
 
-## Key Features & Architecture
+## Архитектура и стек технологий
+- Язык и фреймворк: Java 21, Spring Boot 3.3
+- Многопоточность: Java Virtual Threads (Виртуальные потоки) для максимальной утилизации CPU при параллельном запуске проверок.
+- Брокер сообщений: Apache Kafka (в режиме KRaft) для асинхронной передачи проверенных событий в другие системы банка.
+- Реляционная БД: PostgreSQL 16 (хранение истории проверок и событий Outbox).
+- In-Memory БД: Redis Stack (использование вероятностных структур данных RedisBloom, кэширование).
+- Графовая БД: Neo4j (поиск сложных взаимосвязей между клиентами).
+- Мониторинг: Prometheus, Grafana, Micrometer.
+- Логирование: ELK Stack (Elasticsearch, Logstash, Kibana).
 
-* **Rule-Based Evaluation Engine:** A concurrent evaluation engine leveraging Java 21 Virtual Threads to run multiple fraud checks simultaneously without blocking OS threads.
-* **Idempotency Guarantee:** Prevents duplicate transaction processing (e.g., due to client retries or network failures) by caching scoring results in Redis for 24 hours.
-* **Transactional Outbox Pattern:** Guarantees at-least-once delivery of transaction events to Apache Kafka. Transactions are synchronously saved to PostgreSQL and asynchronously polled by a scheduler to prevent data loss during Kafka outages.
-* **Anti-Money Laundering (AML) Graph Detection:** Utilizes Neo4j to detect cyclic transaction patterns (e.g., A -> B -> C -> A) up to 3 hops deep, effectively identifying money laundering rings.
-* **Shadow Mode for Rule Testing:** Allows data scientists to deploy new experimental rules into production. Shadow rules execute and log their results but are excluded from the final risk score calculation, ensuring zero impact on real customers.
-* **Velocity & Anomaly Rules:** Tracks user transaction frequency and flags abnormally high amounts using in-memory limits.
-* **Global Blacklist (RedisBloom):** Uses RedisBloom (Probabilistic Data Structures) for ultra-fast, memory-efficient IP and device blacklisting.
-* **Real-Time Observability:** Emits JVM and application metrics via Micrometer to Prometheus and Grafana for live monitoring.
+## Ключевые возможности и паттерны проектирования
 
-## Technology Stack
+### 1. Паттерн Transactional Outbox
+Для решения проблемы "двойной записи" (Dual Write) реализован паттерн Outbox. При успешной проверке транзакция атомарно сохраняется в PostgreSQL в таблицу Outbox. Отдельный фоновый планировщик (Scheduler) считывает новые записи и гарантированно отправляет их в Kafka. Это полностью исключает потерю данных в случае недоступности брокера сообщений.
 
-* **Language/Framework:** Java 21, Spring Boot 3.3
-* **Databases:** PostgreSQL 16 (Relational), Redis Stack (Caching, Bloom Filters), Neo4j (Graph)
-* **Message Broker:** Apache Kafka (KRaft mode)
-* **Observability:** Prometheus, Grafana, ELK Stack (Elasticsearch, Logstash, Kibana)
-* **Build Tool:** Gradle
+### 2. Защита от дубликатов (Idempotency)
+Реализован механизм идемпотентности запросов. Перед началом сложного скоринга система проверяет наличие transactionId в кэше Redis. Если клиент (или мобильное приложение) отправил транзакцию дважды из-за сбоя сети, система не будет производить повторную проверку и сохранение в базу, а моментально вернет предыдущий рассчитанный результат из кэша.
 
-## API & Integration
+### 3. Теневой режим (Shadow Mode)
+Внедрен функционал безопасного тестирования новых правил. Правила, помеченные флагом Shadow Mode, выполняются в штатном режиме, вычисляют штрафные баллы и фиксируются в логах и базе данных. Однако их баллы игнорируются при подсчете итогового риска. Это позволяет дата-саентистам безопасно обкатывать экспериментальные AI-модели на реальном трафике без риска заблокировать легитимных клиентов.
 
-### Evaluate Transaction Endpoint
-\POST /api/v1/fraud/evaluate\
+### 4. Графовый анализ AML (Anti-Money Laundering)
+Для выявления схем отмывания денег интегрирована графовая база данных Neo4j. Система фиксирует каждую транзакцию как направленную связь (TRANSFERRED_TO) между узлами-пользователями. Специальное правило при помощи языка Cypher проверяет наличие циклических паттернов (например, цепочка переводов A -> B -> C -> A), и при выявлении кольца немедленно блокирует транзакцию.
 
-**Request Body:**
-\\\json
+### 5. Глобальные черные списки (RedisBloom)
+Вместо классического хранения миллионов заблокированных IP-адресов в реляционной базе, используется структура данных Bloom Filter внутри Redis. Это позволяет проверять принадлежность IP-адреса к черному списку за доли миллисекунды, используя минимальный объем оперативной памяти.
+
+## Результаты тестирования
+
+В ходе разработки система была подвергнута комплексному тестированию. Приведены примеры работы основных сценариев.
+
+Сценарий 1: Срабатывание теневого правила (Shadow Mode)
+Входные данные: Транзакция на сумму 10 000 KZT.
+Ожидание: Экспериментальное правило должно добавить 100 баллов риска, но итоговый вердикт должен остаться ALLOW (0 баллов).
+Результат:
 {
-  "transactionId": "TXN-12345",
-  "senderId": "USER-999",
-  "receiverId": "MERCH-001",
-  "amount": 600000.00,
-  "currency": "KZT",
-  "ipAddress": "192.168.1.100"
+  "transactionId": "TXN-SHADOW-2",
+  "verdict": "ALLOW",
+  "totalRiskScore": 0,
+  "triggeredRules": [
+    {
+      "ruleName": "EXPERIMENTAL_AI_MODEL_RULE",
+      "riskScorePenalty": 100,
+      "reason": "Экспериментальная AI модель заподозрила неладное",
+      "shadowMode": true
+    }
+  ]
 }
-\\\
 
-**Response Body (Example of a Declined Transaction):**
-\\\json
+Сценарий 2: Превышение лимитов и блокировка (Amount Anomaly)
+Входные данные: Транзакция на сумму 600 000 KZT (превышение базового лимита).
+Результат:
 {
   "transactionId": "TXN-12345",
-  "verdict": "DECLINE",
-  "totalRiskScore": 130,
+  "verdict": "CHALLENGE",
+  "totalRiskScore": 30,
   "triggeredRules": [
     {
       "ruleName": "AMOUNT_ANOMALY_RULE",
       "riskScorePenalty": 30,
       "reason": "Amount exceeds limit (500 000)",
       "shadowMode": false
-    },
-    {
-      "ruleName": "EXPERIMENTAL_AI_MODEL_RULE",
-      "riskScorePenalty": 100,
-      "reason": "Experimental AI model flagged the transaction",
-      "shadowMode": true
     }
   ]
 }
-\\\
-*(Note: The shadow rule penalty is ignored in the total score calculation).*
 
-## Infrastructure Setup
+Сценарий 3: Срабатывание идемпотентности
+Входные данные: Повторная отправка транзакции TXN-SHADOW-2.
+Результат: Движок правил не был запущен. В логах зафиксировано предупреждение "Duplicate transactionId detected: TXN-SHADOW-2". Клиенту возвращен успешный закэшированный ответ из Redis за 2 миллисекунды. Запись дубликата в PostgreSQL была предотвращена.
 
-The entire infrastructure can be spun up locally using the provided \docker-compose.yml\ file:
-\\\ash
+## Инструкция по запуску
+
+Проект полностью контейнеризован. Для запуска локальной инфраструктуры необходимо выполнить команду:
 docker compose up -d
-\\\
 
-**Containers include:**
-* \postgres\ (Port 5433)
-* \edis\ (Port 6379)
-* \
-eo4j\ (Ports 7474, 7687)
-* \kafka\ (Port 9092)
-* \prometheus\ & \grafana\ (Ports 9090, 3000)
-* \elasticsearch\ & \kibana\ (Ports 9200, 5601)
+Разворачиваемые сервисы:
+1. PostgreSQL (Порт 5433) - Основная база данных
+2. Redis Stack (Порт 6379) - Кэширование и Bloom фильтры
+3. Neo4j (Порты 7474, 7687) - Графовая аналитика
+4. Apache Kafka (Порт 9092) - Брокер сообщений
+5. Prometheus (Порт 9090) - Сбор метрик приложения
+6. Grafana (Порт 3000) - Визуализация метрик и дашборды
+7. Elasticsearch & Kibana (Порты 9200, 5601) - Централизованное логирование
+
+Метрики приложения доступны по адресу: http://localhost:8080/actuator/prometheus
